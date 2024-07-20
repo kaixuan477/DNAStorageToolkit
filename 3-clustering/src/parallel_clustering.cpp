@@ -277,9 +277,19 @@ int hamming_distance(int i , int j){
 int compute_distance(int i , int j , string type){
   if(DEBUG) assert(i< total_num_of_strands && i >= 0);
   if(DEBUG) assert(j< total_num_of_strands && j >= 0);
-  if(type == "edit"){
+  if(type == "edit1"){ //original edit distance comparison - call not resolved for other sections
     //if(DEBUG) assert(dis <= strand_length);
-    return eval_edit_distance(pool[i] , pool[j]); //is this supposed to call edit_distance()?
+    return edit_distance(pool[i] , pool[j]); //replaced eval_edit_distance() with edit_distance()
+  }
+  else if(type == "edit2"){ // returns 0 if both substr edit dist c1, c2 <= r, else return 1
+    int len = 12; //substr length
+    int rad = 3; //temp r value: cluster diameter
+    string s1 = pool[i];
+    string s2 = pool[j];
+    // comparing front and back substrings
+    int c1 = edit_distance(s1.substr(0, len) , s2.substr(0, len));
+    int c2 = edit_distance(s1.substr((s1.size() - len), len), s2.substr((s2.size() - len), len));
+    return (c1 <= rad && c2 <= rad) ? 1 : 30; //if match return < r, else return > r: makeshift clustering
   }
   else if(type == "hamming"){
     //if(DEBUG) assert(dis <= Q_GRAM_STRAND_SIZE);
@@ -449,7 +459,7 @@ void local_clustering(vector<vector<int> > &clusters){
         }
         else if(hamming_dist<=theta_high)
         {
-          int edit_dist=compute_distance(rep1,rep2,"edit");
+          int edit_dist=compute_distance(rep1,rep2,"edit2"); //edit1 normal edit dist comparison, edit2 edit dist of 2 substr
           if(edit_dist<=r){
             if(sorting_or_pairwise){ //merge
               hash_values[i].cluster.reserve(hash_values[i].cluster.size() + hash_values[j].cluster.size());
@@ -851,6 +861,9 @@ void *parallel_preprocessing(void *args){
   pthread_mutex_unlock(&mutex1);
   pthread_exit(NULL);
 }
+
+// single-thread preprocessing -
+// includes cluster hamming and edit distance estimation for fine-tuned clustering
 void  preprocessing(){
   long long tot_len = 0;
   for(int i = 0;i < total_num_of_strands ; ++i)
